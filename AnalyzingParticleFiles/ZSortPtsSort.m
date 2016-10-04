@@ -4,7 +4,7 @@ function [ ZSortPts ] = ZSortPtsSort( ZSortPts, data, Zpts0, Zpts1, Zpts2, Zpts3
     Xpts20, Xpts21, Xpts22, Xpts23, Xpts24, Xpts25, Xpts26, Xpts27, Xpts28, ...
     Xpts29, Xpts30, Xpts31, Xpts32)
 %ZSortPtsSort Summary of this function goes here
-%   Detailed explanation goes here
+%   By Emily Lichko
 
 ZSortPts.l00k01 = [ZSortPts.l00k01 data(:, intersect(Zpts0, Xpts1))];
 ZSortPts.l00k02 = [ZSortPts.l00k02 data(:, intersect(Zpts0, Xpts2))];
