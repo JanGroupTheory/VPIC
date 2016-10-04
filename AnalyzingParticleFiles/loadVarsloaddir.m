@@ -1,7 +1,7 @@
 function [fileName, nlx, nlz, Lx, Lz, mime, Npart, Vlim, Elim, maxZAbs, ...
     minZAbs, Xbloc, Zbloc, maxXAbs, minXAbs, delT] = loadVarsloaddir( loaddir, folderName )
 %loadVarsloaddir Summary of this function goes here
-%   Detailed explanation goes here
+%   By Emily Lichko
 
 if strcmp(loaddir,['/ext/VPICRuns/Pumping2DSinglePump/Test' folderName '/particles'])
     nlx = 12096;
