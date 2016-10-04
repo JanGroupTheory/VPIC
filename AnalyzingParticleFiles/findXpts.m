@@ -4,7 +4,7 @@ function [ Xpts0, Xpts1, Xpts2, Xpts3, Xpts4, Xpts5, Xpts6, Xpts7, Xpts8, ...
     Xpts27, Xpts28, Xpts29, Xpts30, Xpts31, Xpts32, Xpts33]...
     = findXpts( data, minXTemp, diffXTemp )
 %findXpts Summary of this function goes here
-%   Detailed explanation goes here
+%   By Emily Lichko
 
 Xpts0 = [];
 Xpts1 = [];
