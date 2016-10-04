@@ -1,7 +1,7 @@
 function [ Zpts0, Zpts1, Zpts2, Zpts3, Zpts4, Zpts5, Zpts6, Zpts7, Zpts8, ...
     Zpts9] = findZpts( data, minZAbs, diffZAbs )
 %findZpts Summary of this function goes here
-%   Detailed explanation goes here
+%   By Emily Lichko
 
         Zpts0 = [];
         Zpts1 = [];
