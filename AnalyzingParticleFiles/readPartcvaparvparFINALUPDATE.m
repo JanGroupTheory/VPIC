@@ -2,6 +2,8 @@
 %
 % Reading in the particle data
 %
+% By Emily Lichko
+%
 % Requires:
 % ZSortCreate, ZSortPtsDetFn, ZSortPtsSort, findXpts, findZpts,
 % loadVarsloaddir, and readFunctionPumpX2
