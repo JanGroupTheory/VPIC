@@ -3,6 +3,7 @@ function [ data ] = ZSortPtsDetFn(ZSortPts, n1 ,l, data )
 %   Used to make the code look cleaner
 %   Takes m [1, 32]
 %   And   l [0, 11]
+%   By Emily Lichko
 
 if n1 == 1
     if l == 0
