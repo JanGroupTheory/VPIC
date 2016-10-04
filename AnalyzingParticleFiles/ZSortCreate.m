@@ -1,6 +1,6 @@
 function [ ZSortPts ] = ZSortCreate( )
 %ZSortCreate Creates a struct with Ndivk*Ndivl subsets
-%   Detailed explanation goes here
+%   By Emily Lichko
 
  ZSortPts=struct('l00k01', [ ], 'l00k02', [ ], 'l00k03', [ ], 'l00k04', [ ],...
         'l00k05', [ ], 'l00k06', [ ], 'l00k07', [ ], 'l00k08', [ ], 'l00k09', [ ], ...
