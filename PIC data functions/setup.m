@@ -3,9 +3,9 @@ global allfilenames
 global allvarnames
 global allzeroincs
 
-folderpath = 'D:\IslandCoalescenceTimeSlices\';
+folderpath = 'D:\ForceFreeIslands\';
 
-timeslices = 1:4:473;
+timeslices = 1:1:192;
 
 scalfile = {'Psi','Ne','Ppar','Pparp1','Pparp2','Pp1p2','Pperp1','Pperp2','Tpar','Tperp1','Tperp2'};
 scalvar = {'Psi','ne','Ppar','Pparp1','Pparp2','Pp1p2','Pperp1','Pperp2','Tpar','Tperp1','Tperp2'};
@@ -16,21 +16,25 @@ symtensvar = {'P'};
 coordnames = {'x','y','z'};
 ndim = length(coordnames);
 
-pcolorconts = [-90:10:0 7:7:49 53:4:65];
+pcolorconts = [-200:14:-18 -18:7:-4 -4:5:26];
 
 %Create temperature data from pressure data
 
 maketempdata(timeslices,folderpath);
 
+'Temperature data done'
+
 %Create magnitude data for all vectors
 
-makemagdata(timeslices,folderpath,vecfile,vecvar,coordnames);
+%makemagdata(timeslices,folderpath,vecfile,vecvar,coordnames);
+
+'Magnitude data done'
 
 %Create variable name arrays
 
 scalfilenames = scalfile;
 scalvarnames = scalvar;
-scalzero = repmat('',1,length(scalvarnames));
+scalzero = repmat({''},1,length(scalvarnames));
 
 vecfilenames = cell(length(vecfile),ndim+1);
 vecvarnames = cell(length(vecvar),ndim+1);
@@ -40,7 +44,7 @@ veczero = repmat([repmat({'zero'},1,ndim) {''}],length(vecfile),1);
 
 symtensfilenames = cell(length(symtensfile),ndim*(ndim+1)/2);
 symtensvarnames = cell(length(symtensvar),ndim*(ndim+1)/2);
-symtenszero = repmat('',length(symtensvar),ndim*(ndim+1)/2);
+symtenszero = repmat({''},length(symtensvar),ndim*(ndim+1)/2);
 
 for j = 1:length(vecfile)
     for i = 1:ndim
@@ -68,20 +72,25 @@ allfilenames = cat(2,scalfilenames,reshape(vecfilenames,1,[]),reshape(symtensfil
 allvarnames = cat(2,scalvarnames,reshape(vecvarnames,1,[]),reshape(symtensvarnames,1,[]));
 allzeroincs = cat(2,scalzero,reshape(veczero,1,[]),reshape(symtenszero,1,[]));
 
-save('GlobalNames.mat','folderpath','allfilenames','allvarnames','allzeroincs')
+save('GlobalNames.mat','allfilenames','allvarnames','allzeroincs','folderpath')
+
+'Names created'
 
 %Create precalculated flux contours
 
 if(~exist([folderpath 'pcolorCmat.mat'],'file'))
     makefluxCmat(folderpath, 'pcolorCmat.mat',timeslices,pcolorconts)
+    'Made pcolor Cmat'
 end
 if(~exist([folderpath 'ContAvgCmat.mat'],'file'))
-    load([folderpath 'Psi_' timeslices(1) '.mat']);
+    load([folderpath 'Psi_' num2str(timeslices(1)) '.mat']);
     avgconts = findcontspacing(Psi);
-    makefluxCmat(folderpath, 'FluxAvgCmat.mat',timeslices,avgconts)
+    makefluxCmat(folderpath, 'ContAvgCmat.mat',timeslices,avgconts)
+    'Made ContAvg Cmat'
 end
 if(~exist([folderpath 'FluxAvgCmat.mat'],'file'))
-    makefluxCmat(folderpath, 'pcolorCmat.mat',timeslices)
+    makefluxCmat(folderpath, 'FluxAvgCmat.mat',timeslices)
+    'Made FluxAvg Cmat'
 end
 
 %Create maximum and minimum arrays
@@ -167,3 +176,5 @@ if(~(exist([folderpath 'sliceminmax.mat'],'file')&& exist([folderpath 'fluxavgmi
     save([folderpath 'sliceminmax.mat'], 'maxvals', 'minvals')
 
 end
+
+'Min/Max data complete.'
