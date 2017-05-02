@@ -36,7 +36,7 @@ function [] = makefluxCmat(folderpath, filename, timeslices, varargin)
     end
     
     for i = 1:length(timeslices)
-        PsiCmat.(['Cmat' num2str(slicenum(i))]) = CmatHold{i};
+        PsiCmat.(['Cmat' num2str(timeslices(i))]) = CmatHold{i};
     end
     
     save([folderpath filename],'PsiCmat')

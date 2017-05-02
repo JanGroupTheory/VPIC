@@ -2,15 +2,15 @@ function [range] = findrange2(expression,timesteps,varargin)
 
     [varnames, filenames] = findvarnames(expression);
     
-    folderpath = 'D:\IslandCoalescenceTimeSlices\';
+    load GlobalNames.mat
     
     %tic
     if(length(varnames) == 1)
         load sliceminmax.mat
         maxarrt = maxvals.(varnames{1});
-        maxarr = maxarrt(timesteps+1);
+        maxarr = maxarrt(timesteps);
         minarrt = minvals.(varnames{1});
-        minarr = minarrt(timesteps+1);
+        minarr = minarrt(timesteps);
         
     else
         
@@ -27,14 +27,15 @@ function [range] = findrange2(expression,timesteps,varargin)
     %            slicenum + 1
     %        end
 
-            slicestr = ['_' num2str(4*slicenum + 1) '.mat'];
+            slicestr = ['_' num2str(slicenum) '.mat'];
 
             for i = 1:length(varnames)
                 temp = [folderpath filenames{i} slicestr];
                 if(exist(temp,'file') ~= 0)
                     load(temp)
                 else
-                    ['Could not find' filenames{i} '_' slicestr '. Terminating.']
+                    ['Could not find ' filenames{i} slicestr '. Terminating.']
+                    range = [];
                     return
                 end
             end

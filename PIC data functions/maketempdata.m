@@ -13,7 +13,7 @@ function [] = maketempdata(timeslices,folderpath)
             save([folderpath 'Tperp1' slicestr],'Tperp1');
         end
         
-        if(~exist([folderpath 'Tperp1' slicestr],'file'))
+        if(~exist([folderpath 'Tperp2' slicestr],'file'))
             if(~exist('ns','var'))
                 ns = load([folderpath 'Ne' slicestr]);
             end
@@ -22,7 +22,7 @@ function [] = maketempdata(timeslices,folderpath)
             save([folderpath 'Tperp2' slicestr],'Tperp2');
         end
         
-        if(~exist([folderpath 'Tperp1' slicestr],'file'))
+        if(~exist([folderpath 'Tpar' slicestr],'file'))
             if(~exist('ns','var'))
                 ns = load([folderpath 'Ne' slicestr]);
             end
