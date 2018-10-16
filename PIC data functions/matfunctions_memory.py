@@ -84,11 +84,11 @@ def process1slice(matdir,slicenum,dt,dx_de):
         bhatx = np.divide(bx,absB)
         bhaty = np.divide(by,absB)
         bhatz = np.divide(bz,absB)
-        #sz = np.shape(bx)
-        #Ibx = np.cumsum(bz[0,:])-(bz[0,:]+bz[0,0])/2
-        #Ibz = np.cumsum(bx, axis=0) - (np.matmul(np.ones((sz[0],1)),np.reshape(bx[0,:],(1,-1))) + bx)/2
-        #Psi = 2*(np.matmul(np.ones((sz[0],1)), np.reshape(Ibx,(1,-1))) - Ibz)*dx_de
-        Psi = solvePoisson(4*np.pi*sio.loadmat(matdir+'/jy_' + str(slicenum) + '.mat')['jy'],dx_de,0)
+        sz = np.shape(bx)
+        Ibx = np.cumsum(bz[0,:])-(bz[0,:]+bz[0,0])/2
+        Ibz = np.cumsum(bx, axis=0) - (np.matmul(np.ones((sz[0],1)),np.reshape(bx[0,:],(1,-1))) + bx)/2
+        Psi = 2*(np.matmul(np.ones((sz[0],1)), np.reshape(Ibx,(1,-1))) - Ibz)*dx_de
+        #Psi = solvePoisson(4*np.pi*sio.loadmat(matdir+'/jy_' + str(slicenum) + '.mat')['jy'],dx_de,0)
         newfilesF = {'Psi':Psi}
         for key,value in newfilesF.items():
             sio.savemat(matdir+key+'_' + str(slicenum) + '.mat', {key:value})
@@ -487,11 +487,11 @@ def process1sliceavg(matdir,slicenum,dt,dx_de):
         bhatx = np.divide(bx,absB)
         bhaty = np.divide(by,absB)
         bhatz = np.divide(bz,absB)
-        #sz = np.shape(bx)
-        #Ibx = np.cumsum(bz[0,:])-(bz[0,:]+bz[0,0])/2
-        #Ibz = np.cumsum(bx, axis=0) - (np.matmul(np.ones((sz[0],1)),np.reshape(bx[0,:],(1,-1))) + bx)/2
-        #Psi = 2*(np.matmul(np.ones((sz[0],1)), np.reshape(Ibx,(1,-1))) - Ibz)*dx_de
-        Psi = solvePoisson(4*np.pi*sio.loadmat(matdir+'/jy_ave_' + str(slicenum) + '.mat')['jy_ave'],dx_de,0) 
+        sz = np.shape(bx)
+        Ibx = np.cumsum(bz[0,:])-(bz[0,:]+bz[0,0])/2
+        Ibz = np.cumsum(bx, axis=0) - (np.matmul(np.ones((sz[0],1)),np.reshape(bx[0,:],(1,-1))) + bx)/2
+        Psi = 2*(np.matmul(np.ones((sz[0],1)), np.reshape(Ibx,(1,-1))) - Ibz)*dx_de
+        #Psi = solvePoisson(4*np.pi*sio.loadmat(matdir+'/jy_ave_' + str(slicenum) + '.mat')['jy_ave'],dx_de,0) 
         newfilesF = {'Psi_ave':Psi}
         for key,value in newfilesF.items():
             sio.savemat(matdir+key+'_' + str(slicenum) + '.mat', {key:value})
