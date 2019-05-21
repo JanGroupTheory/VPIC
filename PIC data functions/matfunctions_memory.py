@@ -270,37 +270,45 @@ def populateslices(varlist,ts,nx,nz,gdadir,savedir):
    # return 0
 
 def calcalpha12(indir,t0,t1,nPsi,vA,wpewce,mime):
-    m = 1
-    e = -1
-    dtwpe = wpewce*mime
-    alpha1 = 0.0
-    alpha2 = 0.0
-    slicevals = sio.loadmat(indir+'/SliceContours_'+str(t0)+'.mat')
-    Jmat0 = slicevals['Jmat']
-    mumat0 = slicevals['mumat']
-    slicevals = sio.loadmat(indir+'/SliceContours_'+str(t1)+'.mat')
-    Jmat1 = slicevals['Jmat']
-    mumat1 = slicevals['mumat']
-    nU,nmu,_ = np.shape(Jmat0)
-    mumax = np.zeros((nU,1))
-    mumin = np.zeros((nU,1))
-    J0 = np.zeros(np.shape(Jmat0[:,:,0]))
-    J1 = np.zeros(np.shape(Jmat1[:,:,0]))
-    for j in range(0,np.size(nPsi)):
-        for i in range(0,nU):
-            k = nPsi[j]
-            mumax = min((mumat0[i,nmu-1,k],mumat1[i,nmu-1,k]))
-            mumin = max((mumat0[i,0,k],mumat1[i,0,k]))
-            mu = np.linspace(mumin,mumax,nmu)
-            J0[i,:] = np.interp(mu,mumat0[i,:,k],Jmat0[i,:,k])
-            J1[i,:] = np.interp(mu,mumat1[i,:,k],Jmat1[i,:,k])
-        dJdt = (J1-J0)/((t1-t0)*dtwpe)
-        alpha1 += -np.sqrt(m/2)/vA*np.mean(np.mean(dJdt,1)/np.sqrt(slicevals['U'].T))
-        alpha2 += np.sqrt(m/2/vA**2*np.mean(np.mean(dJdt**2,1)/slicevals['U'].T))
-    alpha1 /= np.size(nPsi)
-    alpha2 /= np.size(nPsi)
-    return alpha1, alpha2
-
+	m = 1
+	e = -1
+	dtwpe = wpewce*mime
+	alpha1 = 0.0
+	alpha2 = 0.0
+	slicevals = sio.loadmat(indir+'/SliceContours_'+str(t0)+'.mat')
+	Jmat0 = slicevals['Jmat']
+	mumat0 = slicevals['mumat']
+	slicevalsp = sio.loadmat(indir+'/SliceContours_'+str(t1)+'.mat')
+	Jmat1 = slicevalsp['Jmat']
+	mumat1 = slicevalsp['mumat']
+	nU,nmu,_ = np.shape(Jmat0)
+	mumax = np.zeros((nU,1))
+	mumin = np.zeros((nU,1))
+	mumat = np.zeros((nU,nmu))
+	J0 = np.zeros(np.shape(Jmat0[:,:,0]))
+	J1 = np.zeros(np.shape(Jmat1[:,:,0]))
+	alpha1 = np.zeros(np.shape(Jmat1[:,0,:]))
+	alpha2 = np.zeros(np.shape(Jmat1[:,0,:]))
+	U = slicevals['U']
+	Umat,_ = np.meshgrid(U,np.zeros((nmu,1)))
+	Umat = Umat.T
+	for j in range(0,np.size(nPsi)):
+		B = np.min(np.min(slicevalsp['B'+str(j)])+np.min(slicevals['B'+str(j)]))
+		for i in range(0,nU):
+			k = nPsi[j]
+			mumax = min((mumat0[i,nmu-1,k],mumat1[i,nmu-1,k]))
+			mumin = max((mumat0[i,0,k],mumat1[i,0,k]))
+			mu = np.linspace(mumin,mumax,nmu)
+			mumat[i,:] = mu
+			J0[i,:] = np.interp(mu,mumat0[i,:,k],Jmat0[i,:,k])
+			J1[i,:] = np.interp(mu,mumat1[i,:,k],Jmat1[i,:,k])
+		dJdt = (J1-J0)/((t1-t0)*dtwpe)
+		alpha1[:,j] = -np.sqrt(m/2)/vA*np.sum(dJdt/np.sqrt(Umat-mumat*B),1)*np.sum(np.sqrt(Umat-mumat*B),1)/np.sqrt(U)
+		alpha2[:,j] = np.sqrt(m/2/vA**2*np.sum(dJdt/np.sqrt(Umat-mumat*B),1)*np.sum(np.sqrt(Umat-mumat*B),1)/U)
+	print(Umat-mumat*B)
+	dic = {'alpha1':alpha1,'alpha2':alpha2}
+	sio.savemat(indir + '/alphas_'+str(t0)+'.mat',dic)
+	
 def calcJ(indir,slicenums,Umax,nU,nmu):
     m = 1 
     e = -1
@@ -311,7 +319,7 @@ def calcJ(indir,slicenums,Umax,nU,nmu):
         nPsi = np.size(slicevals['Psivals'])
         Jmat = np.zeros((nU,nmu,nPsi))
         mumat = np.zeros((nU,nmu,nPsi))
-        for k in range(0,nPsi-1):
+        for k in range(0,nPsi):
             l = slicevals['l'+str(k)].flatten()
             dl = (np.append(0,np.diff(l))+np.append(np.diff(l),0))/2
             phipar = slicevals['phipar'+str(k)].flatten()
@@ -995,63 +1003,64 @@ def contourvaluesavx(matdir, slicenums, xmin, xmax, xv, zv, nPsi, mime):
     pool.starmap(contourvaluesavx1slice, zip(repeat(matdir),slicenums,repeat(xmin),repeat(xmax),repeat(xv),repeat(zv),repeat(nPsi),repeat(mime))) 
 
 def contourvaluesavx1slice(matdir,slicenum,xmin,xmax,xv,zv,nPsi,mime):
-    #matdir here is the SliceAve directory
-    ns = 1
-    if not (slicenum % 2):
-        Psivals = makePsivals(matdir+'/../',slicenum,xv,zv,xmin,xmax,nPsi)
-    else:
-        Psivals = makePsivals(matdir+'/../',slicenum-1,xv,zv,xmin,xmax,nPsi)
+	#matdir here is the SliceAve directory
+	ns = 1
+	if not (slicenum % 2):
+		Psivals = makePsivals(matdir+'/../',slicenum,xv,zv,xmin,xmax,nPsi)
+	else:
+		Psivals = makePsivals(matdir+'/../',slicenum-1,xv,zv,xmin,xmax,nPsi)
     #print(Psivals)
-    if os.path.isfile(matdir + '/bx_ave_'+str(slicenum)+'.mat'):
-        absB = np.sqrt(sio.loadmat(matdir + '/bx_ave_' + str(slicenum) + '.mat')['bx_ave']**2+
-                       sio.loadmat(matdir + '/by_ave_' + str(slicenum) + '.mat')['by_ave']**2+
-                       sio.loadmat(matdir + '/bz_ave_' + str(slicenum) + '.mat')['bz_ave']**2)
-        bhatx = sio.loadmat(matdir + '/bx_ave_' + str(slicenum) + '.mat')['bx_ave']/absB
-        bhaty = sio.loadmat(matdir + '/by_ave_' + str(slicenum) + '.mat')['by_ave']/absB
-        bhatz = sio.loadmat(matdir + '/bz_ave_' + str(slicenum) + '.mat')['bz_ave']/absB
+	if os.path.isfile(matdir + '/bx_ave_'+str(slicenum)+'.mat'):
+		absB = np.sqrt(sio.loadmat(matdir + '/bx_ave_' + str(slicenum) + '.mat')['bx_ave']**2+
+			sio.loadmat(matdir + '/by_ave_' + str(slicenum) + '.mat')['by_ave']**2+
+			sio.loadmat(matdir + '/bz_ave_' + str(slicenum) + '.mat')['bz_ave']**2)
+		bhatx = sio.loadmat(matdir + '/bx_ave_' + str(slicenum) + '.mat')['bx_ave']/absB
+		bhaty = sio.loadmat(matdir + '/by_ave_' + str(slicenum) + '.mat')['by_ave']/absB
+		bhatz = sio.loadmat(matdir + '/bz_ave_' + str(slicenum) + '.mat')['bz_ave']/absB
 
-        ex = sp.ndimage.filters.gaussian_filter(sio.loadmat(matdir + '/ex_ave_' + str(slicenum) + '.mat')['ex_ave'],ns,mode='constant')
-        ey = sp.ndimage.filters.gaussian_filter(sio.loadmat(matdir + '/ey_ave_' + str(slicenum) + '.mat')['ey_ave'],ns,mode='constant')
-        ez = sp.ndimage.filters.gaussian_filter(sio.loadmat(matdir + '/ez_ave_' + str(slicenum) + '.mat')['ez_ave'],ns,mode='constant')
+		ex = sp.ndimage.filters.gaussian_filter(sio.loadmat(matdir + '/ex_ave_' + str(slicenum) + '.mat')['ex_ave'],ns,mode='constant')
+		ey = sp.ndimage.filters.gaussian_filter(sio.loadmat(matdir + '/ey_ave_' + str(slicenum) + '.mat')['ey_ave'],ns,mode='constant')
+		ez = sp.ndimage.filters.gaussian_filter(sio.loadmat(matdir + '/ez_ave_' + str(slicenum) + '.mat')['ez_ave'],ns,mode='constant')
 
-        Epar = ex*bhatx+ey*bhaty+ez*bhatz
+		Epar = ex*bhatx+ey*bhaty+ez*bhatz
 
-        splineB = sp.interpolate.RectBivariateSpline(xv,zv,absB.T)
-        splineE = sp.interpolate.RectBivariateSpline(xv,zv,Epar.T)
-        splineBg = sp.interpolate.RectBivariateSpline(xv,zv,bhaty.T)
-        splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bhatx.T)
-        splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bhatz.T)
-        newdict = {}
-        for j in range(0,nPsi): 
+		splineB = sp.interpolate.RectBivariateSpline(xv,zv,absB.T)
+		splineE = sp.interpolate.RectBivariateSpline(xv,zv,Epar.T)
+		splineBg = sp.interpolate.RectBivariateSpline(xv,zv,bhaty.T)
+		splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bhatx.T)
+		splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bhatz.T)
+		newdict = {}
+		for j in range(0,nPsi): 
             #print(np.size(Psivals))
-            temp = plt.contour(xv,zv,sio.loadmat(matdir + '/Psi_ave_' + str(slicenum) + '.mat')['Psi_ave'],Psivals).collections[j].get_paths()[0].vertices
-            x = temp[:,0]
-            z = temp[:,1]
+			temp = plt.contour(xv,zv,sio.loadmat(matdir + '/Psi_ave_' + str(slicenum) + '.mat')['Psi_ave'],Psivals).collections[j].get_paths()[0].vertices
+			x = temp[:,0]
+			z = temp[:,1]
             #print(xv,zv,x,z)
-            B = splineB.ev(x,z)
-            B[B!=B] = 1
+			B = splineB.ev(x,z)
+			B[B!=B] = 1
             
-            epar = splineE.ev(x,z)
-            epar[epar!=epar]  = 0
-            dx = (np.append(0,np.diff(x))+np.append(np.diff(x),0))/2
-            dz = (np.append(0,np.diff(z))+np.append(np.diff(z),0))/2
+			epar = splineE.ev(x,z)
+			epar[epar!=epar]  = 0
+			dx = (np.append(0,np.diff(x))+np.append(np.diff(x),0))/2
+			dz = (np.append(0,np.diff(z))+np.append(np.diff(z),0))/2
 
-            bg = splineBg.ev(x,z)
-            bg[bg!=bg] = 0
-            bx = splinebx.ev(x[0],z[0])
-            bz = splinebz.ev(x[0],z[0])
-            parsign = np.sign(bx*dx[0]+bz*dz[0])
-            dl =  parsign*np.sqrt((dx**2+dz**2)*(1/(1-bg**2)))*np.sqrt(mime)
-            l = np.cumsum(dl)
-            phipar = -np.cumsum(dl*epar)
-            midind = np.argmin(np.abs(z))
-            l = l - l[midind]
-            phipar = phipar - phipar[midind]
-            newdict.update({'x'+str(j):x,'z'+str(j):z,'l'+str(j):l,'B'+str(j):B,'phipar'+str(j):phipar})
-        newdict.update({'xv':xv,'zv':zv,'Psivals':Psivals})
-        if not os.path.isdir(matdir+'/../FullSlice/'):
-            mkdir(matdir + '/../FullSlice/')
-        sio.savemat(matdir + '../FullSlice/SliceContours_'+ str(slicenum)+ '.mat', newdict)
+			bg = splineBg.ev(x,z)
+			bg[bg!=bg] = 0
+			bx = splinebx.ev(x[0],z[0])
+			bz = splinebz.ev(x[0],z[0])
+			parsign = np.sign(bx*dx[0]+bz*dz[0])
+			dl =  parsign*np.sqrt((dx**2+dz**2)*(1/(1-bg**2)))*np.sqrt(mime)
+			l = np.cumsum(dl)
+			phipar = -np.cumsum(dl*epar)
+			midind = np.argmin(np.abs(z))
+			l = l - l[midind]
+			phipar = phipar - phipar[midind]
+			newdict.update({'x'+str(j):x,'z'+str(j):z,'l'+str(j):l,'B'+str(j):B,'phipar'+str(j):phipar})
+		newdict.update({'xv':xv,'zv':zv,'Psivals':Psivals})
+		if not os.path.isdir(matdir+'/../FullSlice/'):
+			mkdir(matdir + '/../FullSlice/')
+		sio.savemat(matdir + '../FullSlice/SliceContours_'+ str(slicenum)+ '.mat', newdict)
+		print('Saved '+matdir + '../FullSlice/SliceContours_'+ str(slicenum)+ '.mat')
 
 def contourvaluesx(indir, slicenums, xmin, xmax, xv, zv, nPsi, mime):
     pool = multiprocessing.Pool()
