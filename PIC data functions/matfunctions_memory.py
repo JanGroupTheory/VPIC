@@ -278,35 +278,48 @@ def calcalpha12(indir,t0,t1,nPsi,vA,wpewce,mime):
 	slicevals = sio.loadmat(indir+'/SliceContours_'+str(t0)+'.mat')
 	Jmat0 = slicevals['Jmat']
 	mumat0 = slicevals['mumat']
+	taub0 = slicevals['taub']
 	slicevalsp = sio.loadmat(indir+'/SliceContours_'+str(t1)+'.mat')
 	Jmat1 = slicevalsp['Jmat']
 	mumat1 = slicevalsp['mumat']
+	taub1 = slicevalsp['taub']
 	nU,nmu,_ = np.shape(Jmat0)
 	mumax = np.zeros((nU,1))
 	mumin = np.zeros((nU,1))
 	mumat = np.zeros((nU,nmu))
 	J0 = np.zeros(np.shape(Jmat0[:,:,0]))
 	J1 = np.zeros(np.shape(Jmat1[:,:,0]))
+	tau0 = np.zeros(np.shape(Jmat0[:,:,0]))
+	tau1 = np.zeros(np.shape(Jmat1[:,:,0]))
 	alpha1 = np.zeros(np.shape(Jmat1[:,0,:]))
 	alpha2 = np.zeros(np.shape(Jmat1[:,0,:]))
 	U = slicevals['U']
 	Umat,_ = np.meshgrid(U,np.zeros((nmu,1)))
 	Umat = Umat.T
+	alpha1s = np.zeros(np.shape(nPsi))
+	alpha2s = np.zeros(np.shape(nPsi))
+	
 	for j in range(0,np.size(nPsi)):
-		B = np.min(np.min(slicevalsp['B'+str(j)])+np.min(slicevals['B'+str(j)]))
+		k = nPsi[j]
+		B = np.min(np.min(slicevalsp['B'+str(k)]),np.min(slicevals['B'+str(k)]))
 		for i in range(0,nU):
-			k = nPsi[j]
 			mumax = min((mumat0[i,nmu-1,k],mumat1[i,nmu-1,k]))
 			mumin = max((mumat0[i,0,k],mumat1[i,0,k]))
 			mu = np.linspace(mumin,mumax,nmu)
 			mumat[i,:] = mu
 			J0[i,:] = np.interp(mu,mumat0[i,:,k],Jmat0[i,:,k])
 			J1[i,:] = np.interp(mu,mumat1[i,:,k],Jmat1[i,:,k])
+			tau0[i,:] = np.interp(mu,mumat0[i,:,k],taub0[i,:,k])
+			tau1[i,:] = np.interp(mu,mumat1[i,:,k],taub1[i,:,k])
 		dJdt = (J1-J0)/((t1-t0)*dtwpe)
-		alpha1[:,j] = -np.sqrt(m/2)/vA*np.sum(dJdt/np.sqrt(Umat-mumat*B),1)*np.sum(np.sqrt(Umat-mumat*B),1)/np.sqrt(U)
-		alpha2[:,j] = np.sqrt(m/2/vA**2*np.sum(dJdt/np.sqrt(Umat-mumat*B),1)*np.sum(np.sqrt(Umat-mumat*B),1)/U)
-	print(Umat-mumat*B)
-	dic = {'alpha1':alpha1,'alpha2':alpha2}
+		taub = (tau1+tau0)/2
+		#sqrtUmB = np.sqrt(np.maximum(Umat-mumat*B,np.min(U)/1e9*np.ones(np.shape(Umat))))
+		alpha1[:,j] = -np.sqrt(m/2)/vA*np.sum(dJdt*taub,1)/np.sum(taub,1)/np.sqrt(U)
+		alpha2[:,j] = np.sqrt(m/2/vA**2*np.sum(dJdt**2*taub,1)/np.sum(taub,1)/U)
+		php = -(np.ndarray.flatten(slicevalsp['phipar'+str(k)])[0]+ np.ndarray.flatten(slicevals['phipar'+str(k)])[-1]+np.ndarray.flatten(slicevals['phipar'+str(k)])[0]+ np.ndarray.flatten(slicevalsp['phipar'+str(k)])[-1])/4
+		alpha1s[j] = np.interp(php,np.ndarray.flatten(U),alpha1[:,j]) 
+		alpha2s[j] = np.interp(php,np.ndarray.flatten(U),alpha2[:,j]) 
+	dic = {'alpha1':alpha1,'alpha2':alpha2,'alpha1s':alpha1s,'alpha2s':alpha2s}
 	sio.savemat(indir + '/alphas_'+str(t0)+'.mat',dic)
 	
 def calcJ(indir,slicenums,Umax,nU,nmu):
@@ -318,6 +331,7 @@ def calcJ(indir,slicenums,Umax,nU,nmu):
         slicevals=sio.loadmat(indir+ '/SliceContours_'+str(slicenum)+ '.mat')
         nPsi = np.size(slicevals['Psivals'])
         Jmat = np.zeros((nU,nmu,nPsi))
+        taub = Jmat = np.zeros((nU,nmu,nPsi))
         mumat = np.zeros((nU,nmu,nPsi))
         for k in range(0,nPsi):
             l = slicevals['l'+str(k)].flatten()
@@ -352,9 +366,10 @@ def calcJ(indir,slicenums,Umax,nU,nmu):
                     #print(maxind, minind, midplaneind)
                     indexrange = range(maxind+1,minind-1)
                     Jmat[i,j,k] = 2*np.sum(np.nan_to_num(np.sqrt(Enerpar[indexrange]))*np.abs(dl[indexrange]))
+                    taub[i,j,k] = 2*np.sum(np.nan_to_num(1/np.sqrt(Enerpar[indexrange]))*np.abs(dl[indexrange]))
         U = Us
         dic = sio.loadmat(indir + '/SliceContours_'+ str(slicenum)+ '.mat')
-        dic.update({'Jmat':Jmat,'U':U,'mumat':mumat})
+        dic.update({'Jmat':Jmat,'U':U,'mumat':mumat,'taub':taub})
         sio.savemat(indir + '/SliceContours_'+ str(slicenum)+ '.mat', dic)
 
 def makemats(basedir):
@@ -891,8 +906,8 @@ def fulldJdt(indir,t0,t1,nPsi,vA,wpewce,mime):
     dJdt = np.zeros(np.shape(Jmat0))
     mumat = np.zeros(np.shape(Jmat0))
     for j in range(0,np.size(nPsi)):
+        k = int(nPsi[j])
         for i in range(0,nU):
-            k = nPsi[j]
             mumax = min((mumat0[i,nmu-1,k],mumat1[i,nmu-1,k]))
             mumin = max((mumat0[i,0,k],mumat1[i,0,k]))
             mu = np.linspace(mumin,mumax,nmu)
@@ -1266,4 +1281,331 @@ def solvePoisson(curlB,dx,Psi0):
     psitilde[nz+1,::] = 0
     return np.real(np.fft.ifft(psitilde,axis=0)[1:nz+1,::]+Psi0)
     
-    
+def load_domain_particles(filename):
+
+	# Usage: [ g, px, py, pz, pux, puy, puz, pq ] = ...
+	#          load_domain_particles(filename);
+	#
+	# g - Grid parameters:
+	#     g = [ nt nx ny nz ...
+	#           dt dx dy dz ...
+	#           cvac eps0 damp ...
+	#           x0 y0 z0 ...
+	#           spid spqm ...
+	#           rank ndom ]
+	#   where:
+	#     nt  nx, ny, nz - Time level and grid resolution
+	#     dt, dx, dy, dz - Time step and grid spacing
+	#     cvac           - Speed of light
+	#     eps0           - Permittivity of free space
+	#     damp           - Radiation damping parameter
+	#     x0, y0, z0     - Offset of this domain
+	#     spid spqm      - Species ID and the charge to mass ratio
+	#     rank           - ID of this domain
+	#     ndom           - Total number of domains (i.e. nproc)
+	#
+	# filename - Name of the particle dump file to load.
+
+	if nargin<2:
+		order = [2 1 3]
+
+	# Open the requested file
+
+	handle = open(filename,'rb')
+	if handle==-1:
+		raise Exception('Could not open file')
+
+	# Read binary compatibility information
+
+	cbit = np.fromfile(handle,np.int8,1)
+	shsz = np.fromfile(handle,np.int8,1)
+	isz  = np.fromfile(handle,np.int8,1)
+	flsz = np.fromfile(handle,np.int8,1)
+	dbsz = np.fromfile(handle,np.int8,1)
+	mgcs = np.fromfile(handle,np.uint16,1)
+	tsts = int('cafe',16)
+	mgci = np.fromfile(handle,np.uint32,1)
+	tsti = int('deadbeef',16)
+	mgcf = np.fromfile(handle,np.single,1)
+	mgcd = np.fromfile(handle,np.double,1)
+
+	# Read the dump version and type
+
+	vers = np.fromfile(handle,np.int32,1)
+	type = np.fromfile(handle,np.int32,1)
+
+	# Read the metadata
+
+	nt   = np.fromfile(handle,np.int32,1)
+	nx   = np.fromfile(handle,np.int32,1)
+	ny   = np.fromfile(handle,np.int32,1)
+	nz   = np.fromfile(handle,np.int32,1)
+	dt   = np.fromfile(handle,np.single,1)
+	dx   = np.fromfile(handle,np.single,1)
+	dy   = np.fromfile(handle,np.single,1)
+	dz   = np.fromfile(handle,np.single,1)
+	x0   = np.fromfile(handle,np.single,1)
+	y0   = np.fromfile(handle,np.single,1)
+	z0   = np.fromfile(handle,np.single,1)
+	cvac = np.fromfile(handle,np.single,1)
+	eps0 = np.fromfile(handle,np.single,1)
+	damp = np.fromfile(handle,np.single,1)
+	rank = np.fromfile(handle,np.int32,1)
+	npro = np.fromfile(handle,np.int32,1)
+	spid = np.fromfile(handle,np.int32,1)
+	spqm = np.fromfile(handle,np.single,1)
+
+	# Check for file compatibility / corruption
+
+	if cbit~=8:
+		handle.close()
+		raise Exception('Invalid cbit')
+	if shsz~=2:
+		handle.close() 
+		raise Exception('Invalid shsz')
+	if isz ~=4:
+		handle.close() 
+		raise Exception('Invalid isz')
+	if flsz~=4:
+		handle.close() 
+		raise Exception('Invalid flsz')
+	if dbsz~=8:
+		handle.close() 
+		raise Exception('Invalid dbsz')
+	if mgcs~=tsts:
+		handle.close() 
+		raise Exception('Invalid mgcs')
+	if mgci~=tsti:
+		handle.close() 
+		raise Exception('Invalid mgci')
+	if mgcf~=1:
+		handle.close() 
+		raise Exception('Invalid mgcf')
+	if mgcd~=1:
+		handle.close() 
+		raise Exception('Invalid mgcd')
+	if vers~=0:
+		handle.close() 
+		raise Exception('Invalid vers')
+	if type~=3:
+		handle.close() 
+		raise Exception('Invalid type')
+	if nt<0:
+		handle.close() 
+		raise Exception('Invalid nt')
+	if nx<1:
+		handle.close() 
+		raise Exception('Invalid nx')
+	if ny<1:
+		handle.close() 
+		raise Exception('Invalid ny')
+	if nz<1:
+		handle.close()
+		raise Exception('Invalid nz')
+	if dt<0:
+		handle.close() 
+		raise Exception('Invalid dt')
+	if dx<0:
+		handle.close() 
+		raise Exception('Invalid dx')
+	if dy<0:
+		handle.close()
+		raise Exception('Invalid dy')
+	if dz<0:
+		handle.close() 
+		raise Exception('Invalid dz')
+	if cvac<=0:
+		handle.close() 
+		raise Exception('Invalid cvac')
+	if rank<0:
+		handle.close()
+		raise Exception('Invalid rank')
+	if rank>=npro:
+		handle.close() 
+		raise Exception('Invalid rank')
+	if npro<1:
+		handle.close()
+		raise Exception('Invalid npro')
+
+	# Setup the grid parameters array
+
+	g = [ nt nx ny nz dt dx dy dz cvac eps0 damp x0 y0 z0 spid spqm rank npro ];
+
+	# Read the raw particle data
+
+	elsz = np.fromfile(handle,np.int32,1)
+	ndim = np.fromfile(handle,np.int32,1)
+	dim0 = np.fromfile(handle,np.int32,1)
+
+	if elsz~=32:
+		handle.close() 
+		raise Exception('Invalid elsz')
+	if ndim~=1:
+		handle.close() 
+		raise Exception('Invalid ndim')
+	if dim0<0:   
+		handle.close()
+		raise Exception('Invalid dim0')
+
+	if dim0==0:
+	  px=[]
+	  py=[]
+	  pz=[]
+	  pux=[]
+	  puy=[]
+	  puz=[]
+	  pq=[]
+	  handle.close()
+	  return
+
+	data_start = handle.tell()
+	data = np.fromfile(handle,np.single).reshape((dim0,8)).T
+	pox = data[1,:]
+	poy = data[2,:]
+	poz = data[3,:]
+	pux = data[5,:]
+	puy = data[6,:]
+	puz = data[7,:]
+	pq  = data[8,:]
+
+#	handle.seek(data_start,0)
+#	np.fromfile(handle,np.single,3)
+#	pix = fread(handle,[1,dim0],'int32',28); This is the efficient matlab way
+
+	handle.seek(data_start,0) #I know this does what I need it to, though I'm sure there's a better way.
+	data = np.fromfile(handle,np.int32).reshape((dim0,8)).T
+	pox = data[4,:]
+	
+	handle.close()
+
+	piy = np.floor(pix/(nx+2))
+	pix = pix - piy*(nx+2)
+	piz = np.floor(piy/(ny+2))
+	piy = piy - piz*(ny+2)
+
+	px = x0 + (pix+0.5*pox-0.5)*dx;
+	py = y0 + (piy+0.5*poy-0.5)*dy;
+	pz = z0 + (piz+0.5*poz-0.5)*dz;
+
+
+	return g, px, py, pz, pux, puy, puz, pq 
+
+def makef(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
+	matdir = basedir+'/Slices/'
+	bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
+	by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
+	bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
+	splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
+	splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+	domainnums = finddomainnums(basedir,x0,z0,delx,delz)
+	for dom = domainnums:
+		filename = partdir+'/T.'+str(twrite)+'/eparticle.'+str(twrite)+'.'+str(dom)
+		gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
+		cond = np.nonzero(np.abs(pxi-x0)<delx&&np.abs(pzi-z0)<delz)
+		px.append(pxi[cond])
+		py.append(pyi[cond])
+		pz.append(pzi[cond])
+		pux.append(puxi[cond])
+		puy.append(puyi[cond])
+		puz.append(puzi[cond])
+		pq.append(pqi[cond])
+	#particle data now assembled, ready to bin
+	
+	mx=mean(px)
+
+	pbx = splinebx.ev(px,pz)
+	pby = splineby.ev(px,pz)
+	pbz = splinebz.ev(px,pz)
+	
+	Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
+	bxu=pbx/Bmod
+	byu=pby/Bmod
+	bzu=pbz/Bmod
+
+	bp1x=bzu
+	bp1z=-bxu 
+	Bmodp=sqrt(bp1x**2+bp1z**2)
+	bp1x=bp1x/Bmodp
+	bp1z=bp1z/Bmodp
+	bp1y=bp1z*0
+	
+	#make  unit vector perp to B and bp1 
+	bp2x=byu*bp1z-bzu*bp1y
+	bp2y=bzu*bp1x-bxu*bp1z
+	bp2z=bxu*bp1y-byu*bp1x
+	
+	Vpar = bxu*pux+byu*puy+bzu*puz
+	Vperp1 = bp1x*pux+bp1y*puy+bp1z*puz
+	Vperp2 = bp2x*pux+bp2y*puy+bp2z*puz
+	
+	Vperp=np.sqrt(Vperp1**2+Vperp2**2)
+	
+	Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
+	f,vpar,vperp1,vperp2 = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
+	Fxy = np.divide(Fxy,VY)
+	
+def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
+	matdir = basedir+'/Slices/'
+	bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
+	by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
+	bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
+	splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
+	splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+	domainnums = finddomainnums(basedir,x0,z0,delx,delz)
+	for dom = domainnums:
+		filename = partdir+'/T.'+str(twrite)+'/eparticle.'+str(twrite)+'.'+str(dom)
+		gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
+		pbx = splinebx.ev(pxi,pzi)
+		pby = splineby.ev(pxi,pzi)
+		pbz = splinebz.ev(pxi,pzi)
+		
+		Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
+		bxu=pbx/Bmod
+		byu=pby/Bmod
+		bzu=pbz/Bmod
+		
+		rho = np.sqrt(pux**2+puy**2+puz**2-bxu*puxi-byu*puyi-bzu*puzi)/Bmod
+		
+		
+		cond = np.nonzero(np.abs(gxi-x0)<delx&&np.abs(gzi-z0)<delz)
+		px.append(pxi[cond])
+		py.append(pyi[cond])
+		pz.append(pzi[cond])
+		pux.append(puxi[cond])
+		puy.append(puyi[cond])
+		puz.append(puzi[cond])
+		pq.append(pqi[cond])
+	#particle data now assembled, ready to bin
+	
+	pbx = splinebx.ev(px,pz)
+	pby = splineby.ev(px,pz)
+	pbz = splinebz.ev(px,pz)
+	
+	Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
+	bxu=pbx/Bmod
+	byu=pby/Bmod
+	bzu=pbz/Bmod
+
+	bp1x=bzu
+	bp1z=-bxu 
+	Bmodp=sqrt(bp1x**2+bp1z**2)
+	bp1x=bp1x/Bmodp
+	bp1z=bp1z/Bmodp
+	bp1y=bp1z*0
+	
+	#make  unit vector perp to B and bp1 
+	bp2x=byu*bp1z-bzu*bp1y
+	bp2y=bzu*bp1x-bxu*bp1z
+	bp2z=bxu*bp1y-byu*bp1x
+	
+	Vpar = bxu*pux+byu*puy+bzu*puz
+	Vperp1 = bp1x*pux+bp1y*puy+bp1z*puz
+	Vperp2 = bp2x*pux+bp2y*puy+bp2z*puz
+	
+	Vperp=np.sqrt(Vperp1**2+Vperp2**2)
+	
+	Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
+	f,vpar,vperp1,vperp2 = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
+	Fxy = np.divide(Fxy,VY)
