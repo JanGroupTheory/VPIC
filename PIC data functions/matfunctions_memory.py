@@ -1545,6 +1545,8 @@ def makef(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above
     VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
     Fxy = Fxy.T/VY
 	f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
+    savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY}
+    sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(tslice)+'.mat',savedic)
 	
 def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
 	matdir = basedir+'/Slices/'
@@ -1611,3 +1613,5 @@ def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as abo
     VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
     Fxy = Fxy.T/VY
 	f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
+    savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY}
+    sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(tslice)+'.mat',savedic)
