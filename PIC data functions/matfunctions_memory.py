@@ -1541,9 +1541,10 @@ def makef(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above
 	
 	Vperp=np.sqrt(Vperp1**2+Vperp2**2)
 	
-	Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
-	f,vpar,vperp1,vperp2 = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
-	Fxy = np.divide(Fxy,VY)
+    Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
+    VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
+    Fxy = Fxy.T/VY
+	f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
 	
 def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
 	matdir = basedir+'/Slices/'
@@ -1606,6 +1607,7 @@ def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as abo
 	
 	Vperp=np.sqrt(Vperp1**2+Vperp2**2)
 	
-	Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
-	f,vpar,vperp1,vperp2 = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
-	Fxy = np.divide(Fxy,VY)
+    Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
+    VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
+    Fxy = Fxy.T/VY
+	f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
