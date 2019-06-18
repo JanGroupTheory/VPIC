@@ -1489,7 +1489,7 @@ def load_domain_particles(filename):
 
 	return g, px, py, pz, pux, puy, puz, pq 
 
-def makef(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
+def makef(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv,topx,topz): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
     with open(basedir + '/info','r') as fp:
         info = fp.read()
         fp.close()
@@ -1508,7 +1508,7 @@ def makef(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv): #basedir as above f
     splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
     splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
     splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
-    domainnums = finddomainnums(basedir,x0,z0,delx,delz)
+    domainnums = finddomainnums(basedir,x0,z0,delx,delz,topx,topz)
     px = []
     py = []
     pz = []
@@ -1572,7 +1572,7 @@ def makef(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv): #basedir as above f
     sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(slicenum)+'.mat',savedic)
 
     
-def makefgc(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
+def makefgc(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv,topx,topz): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
     with open(basedir + '/info','r') as fp:
         info = fp.read()
         fp.close()
@@ -1591,7 +1591,7 @@ def makefgc(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv): #basedir as above
     splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
     splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
     splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
-    domainnums = finddomainnums(basedir,x0,z0,delx,delz)
+    domainnums = finddomainnums(basedir,x0,z0,delx,delz,topx,topz)
     px = []
     py = []
     pz = []
@@ -1673,5 +1673,27 @@ def makefgc(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv): #basedir as above
     savedic = {'fgc':f,'fgcparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY,'mx':mx,'mz':mz}#,'fgcXYZ':fXYZ,'vx':vX,'vy':vY,'vz':vZ)
     sio.savemat(partdir+'fgc_x'+str(x0)+'_z'+str(z0)+'_'+str(slicenum)+'.mat',savedic)
     
-def finddomainnums(basedir,x0,z0,delx,delz):
-    return (0,1)
+def finddomainnums(basedir,x0,z0,delx,delz,topx,topz):
+    with open(basedir + '/info','r') as fp:
+        info = fp.read()
+        fp.close()
+    Lx = float(info.split('Lx/de =')[1].split()[0])
+    Lz = float(info.split('Lz/de =')[1].split()[0])
+    deltax = Lx/topx
+    deltaz = Lz/topz
+    nproc = int(float(info.split('nproc =')[1].split()[0]))
+    if (nproc != (topx*topz)):
+        raise Exception('Invalid topology')
+    minx = np.max((0,x0-delx))
+    minz = np.max((-Lz/2,z0-delz))
+    maxx = np.min((Lx-1e-5,x0+delx))
+    maxz = np.min((Lz/2-1e-5,z0+delz))
+    minzind = int((minz+Lz/2)/deltaz)
+    maxzind = int((maxz+Lz/2)/deltaz)
+    minxind = int(minx/deltax)
+    maxxind = int(maxx/deltax)
+    outlist = []
+    for xi in range(minxind,maxxind+1):
+        for zi in range(minzind,maxzind+1):
+            outlist.append(xi+topx*zi)
+    return outlist
