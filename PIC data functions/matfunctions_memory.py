@@ -1307,7 +1307,7 @@ def load_domain_particles(filename):
 	# filename - Name of the particle dump file to load.
 
 	if nargin<2:
-		order = [2 1 3]
+		order = (2, 1, 3)
 
 	# Open the requested file
 
@@ -1357,37 +1357,37 @@ def load_domain_particles(filename):
 
 	# Check for file compatibility / corruption
 
-	if cbit~=8:
+	if cbit!=8:
 		handle.close()
 		raise Exception('Invalid cbit')
-	if shsz~=2:
+	if shsz!=2:
 		handle.close() 
 		raise Exception('Invalid shsz')
-	if isz ~=4:
+	if isz !=4:
 		handle.close() 
 		raise Exception('Invalid isz')
-	if flsz~=4:
+	if flsz!=4:
 		handle.close() 
 		raise Exception('Invalid flsz')
-	if dbsz~=8:
+	if dbsz!=8:
 		handle.close() 
 		raise Exception('Invalid dbsz')
-	if mgcs~=tsts:
+	if mgcs!=tsts:
 		handle.close() 
 		raise Exception('Invalid mgcs')
-	if mgci~=tsti:
+	if mgci!=tsti:
 		handle.close() 
 		raise Exception('Invalid mgci')
-	if mgcf~=1:
+	if mgcf!=1:
 		handle.close() 
 		raise Exception('Invalid mgcf')
-	if mgcd~=1:
+	if mgcd!=1:
 		handle.close() 
 		raise Exception('Invalid mgcd')
-	if vers~=0:
+	if vers!=0:
 		handle.close() 
 		raise Exception('Invalid vers')
-	if type~=3:
+	if type!=3:
 		handle.close() 
 		raise Exception('Invalid type')
 	if nt<0:
@@ -1429,7 +1429,7 @@ def load_domain_particles(filename):
 
 	# Setup the grid parameters array
 
-	g = [ nt nx ny nz dt dx dy dz cvac eps0 damp x0 y0 z0 spid spqm rank npro ];
+	g = ( nt, nx, ny, nz, dt, dx, dy, dz, cvac, eps0, damp, x0, y0, z0, spid, spqm, rank, npro)
 
 	# Read the raw particle data
 
@@ -1437,10 +1437,10 @@ def load_domain_particles(filename):
 	ndim = np.fromfile(handle,np.int32,1)
 	dim0 = np.fromfile(handle,np.int32,1)
 
-	if elsz~=32:
+	if elsz!=32:
 		handle.close() 
 		raise Exception('Invalid elsz')
-	if ndim~=1:
+	if ndim!=1:
 		handle.close() 
 		raise Exception('Invalid ndim')
 	if dim0<0:   
@@ -1491,60 +1491,60 @@ def load_domain_particles(filename):
 	return g, px, py, pz, pux, puy, puz, pq 
 
 def makef(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
-	matdir = basedir+'/Slices/'
-	bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
-	by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
-	bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
-	splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
-	splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    matdir = basedir+'/Slices/'
+    bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
+    by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
+    bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
+    splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
+    splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
     splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
-	domainnums = finddomainnums(basedir,x0,z0,delx,delz)
-	for dom = domainnums:
-		filename = partdir+'/T.'+str(twrite)+'/eparticle.'+str(twrite)+'.'+str(dom)
-		gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
-		cond = np.nonzero(np.abs(pxi-x0)<delx&&np.abs(pzi-z0)<delz)
-		px.append(pxi[cond])
-		py.append(pyi[cond])
-		pz.append(pzi[cond])
-		pux.append(puxi[cond])
-		puy.append(puyi[cond])
-		puz.append(puzi[cond])
-		pq.append(pqi[cond])
-	#particle data now assembled, ready to bin
-	
-	mx=mean(px)
+    domainnums = finddomainnums(basedir,x0,z0,delx,delz)
+    for dom in domainnums:
+        filename = partdir+'/T.'+str(twrite)+'/eparticle.'+str(twrite)+'.'+str(dom)
+        gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
+        cond = np.nonzero(np.logical_and((np.abs(pxi-x0)<delx), (np.abs(pzi-z0)<delz)))
+        px.append(pxi[cond])
+        py.append(pyi[cond])
+        pz.append(pzi[cond])
+        pux.append(puxi[cond])
+        puy.append(puyi[cond])
+        puz.append(puzi[cond])
+        pq.append(pqi[cond])
+    #particle data now assembled, ready to bin
+    
+    mx=mean(px)
 
-	pbx = splinebx.ev(px,pz)
-	pby = splineby.ev(px,pz)
-	pbz = splinebz.ev(px,pz)
-	
-	Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
-	bxu=pbx/Bmod
-	byu=pby/Bmod
-	bzu=pbz/Bmod
+    pbx = splinebx.ev(px,pz)
+    pby = splineby.ev(px,pz)
+    pbz = splinebz.ev(px,pz)
+    
+    Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
+    bxu=pbx/Bmod
+    byu=pby/Bmod
+    bzu=pbz/Bmod
 
-	bp1x=bzu
-	bp1z=-bxu 
-	Bmodp=sqrt(bp1x**2+bp1z**2)
-	bp1x=bp1x/Bmodp
-	bp1z=bp1z/Bmodp
-	bp1y=bp1z*0
-	
-	#make  unit vector perp to B and bp1 
-	bp2x=byu*bp1z-bzu*bp1y
-	bp2y=bzu*bp1x-bxu*bp1z
-	bp2z=bxu*bp1y-byu*bp1x
-	
-	Vpar = bxu*pux+byu*puy+bzu*puz
-	Vperp1 = bp1x*pux+bp1y*puy+bp1z*puz
-	Vperp2 = bp2x*pux+bp2y*puy+bp2z*puz
-	
-	Vperp=np.sqrt(Vperp1**2+Vperp2**2)
-	
+    bp1x=bzu
+    bp1z=-bxu 
+    Bmodp=sqrt(bp1x**2+bp1z**2)
+    bp1x=bp1x/Bmodp
+    bp1z=bp1z/Bmodp
+    bp1y=bp1z*0
+        
+    #make  unit vector perp to B and bp1 
+    bp2x=byu*bp1z-bzu*bp1y
+    bp2y=bzu*bp1x-bxu*bp1z
+    bp2z=bxu*bp1y-byu*bp1x
+    
+    Vpar = bxu*pux+byu*puy+bzu*puz
+    Vperp1 = bp1x*pux+bp1y*puy+bp1z*puz
+    Vperp2 = bp2x*pux+bp2y*puy+bp2z*puz
+    
+    Vperp=np.sqrt(Vperp1**2+Vperp2**2)
+    
     Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
     VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
     Fxy = Fxy.T/VY
-	f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
+    f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
     savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY}
     sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(tslice)+'.mat',savedic)
 	
@@ -1555,9 +1555,9 @@ def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as abo
 	bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
 	splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
 	splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
-    splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+	splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
 	domainnums = finddomainnums(basedir,x0,z0,delx,delz)
-	for dom = domainnums:
+	for dom in domainnums:
 		filename = partdir+'/T.'+str(twrite)+'/eparticle.'+str(twrite)+'.'+str(dom)
 		gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
 		pbx = splinebx.ev(pxi,pzi)
@@ -1572,7 +1572,7 @@ def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as abo
 		rho = np.sqrt(pux**2+puy**2+puz**2-bxu*puxi-byu*puyi-bzu*puzi)/Bmod
 		
 		
-		cond = np.nonzero(np.abs(gxi-x0)<delx&&np.abs(gzi-z0)<delz)
+		cond = np.nonzero(np.logical_and(np.abs(gxi-x0)<delx,np.abs(gzi-z0)<delz))
 		px.append(pxi[cond])
 		py.append(pyi[cond])
 		pz.append(pzi[cond])
@@ -1609,9 +1609,9 @@ def makefgc(basedir, partdir, slicenum,x0,z0,delx,delz,vmax,nv): #basedir as abo
 	
 	Vperp=np.sqrt(Vperp1**2+Vperp2**2)
 	
-    Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
-    VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
-    Fxy = Fxy.T/VY
+	Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=-pq)
+	VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
+	Fxy = Fxy.T/VY
 	f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=-pq) #3D f(vpar,vperp1,vperp2)
-    savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY}
-    sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(tslice)+'.mat',savedic)
+	savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY}
+	sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(tslice)+'.mat',savedic)
