@@ -1531,6 +1531,8 @@ def makef(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv,topx,topz): #basedir 
     mx=np.mean(px)
     mz = np.mean(pz)
     
+    #print(mx,mz)
+    
     pbx = splinebx.ev(px,pz)
     pby = splineby.ev(px,pz)
     pbz = splinebz.ev(px,pz)
@@ -1566,9 +1568,9 @@ def makef(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv,topx,topz): #basedir 
     Fxy = Fxy.T/VY/dv/delx/delz/dvperp
     f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq)) #3D f(vpar,vperp1,vperp2)
     f = f/dv**3/delx/delz
-    #fXYZ,(vX,vY,vZ) = np.histogramdd((pux,puy,puz),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq))/dv**3/delx/delz #3D f(vx,vy,vz)
-    #fXYZ = fXYZ/dv**3/delx/delz
-    savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY,'mx':mx,'mz':mz}#,'fXYZ':fXYZ,'vx':vX,'vy':vY,'vz':vZ)
+    fXYZ,(vX,vY,vZ) = np.histogramdd((pux,puy,puz),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq)) #3D f(vx,vy,vz)
+    fXYZ = fXYZ/dv**3/delx/delz
+    savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY,'mx':mx,'mz':mz,'fXYZ':fXYZ,'vx':vX,'vy':vY,'vz':vZ}
     sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(slicenum)+'.mat',savedic)
 
     
@@ -1679,6 +1681,7 @@ def finddomainnums(basedir,x0,z0,delx,delz,topx,topz):
         fp.close()
     Lx = float(info.split('Lx/de =')[1].split()[0])
     Lz = float(info.split('Lz/de =')[1].split()[0])
+    
     deltax = Lx/topx
     deltaz = Lz/topz
     nproc = int(float(info.split('nproc =')[1].split()[0]))
@@ -1697,3 +1700,257 @@ def finddomainnums(basedir,x0,z0,delx,delz,topx,topz):
         for zi in range(minzind,maxzind+1):
             outlist.append(xi+topx*zi)
     return outlist
+
+def makeftb(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv,topx,topz,partlist): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
+    with open(basedir + '/info','r') as fp:
+        info = fp.read()
+        fp.close()
+    #nx = int(float(info.split('nx =')[1].split()[0]))
+    #nz = int(float(info.split('nz =')[1].split()[0]))
+    #dtwci = float(info.split('dt*wci =')[1].split()[0])
+    #Lx = float(info.split('Lx/de =')[1].split()[0])
+    #Lz = float(info.split('Lz/de =')[1].split()[0])
+    #slicenum = round(twrite*dtwci)
+    
+    nx = 2016
+    nz = 2016
+    dtwci = 1.1575e-4
+    Lx = 400
+    Lz = 400
+    slicenum = 0
+    
+    xv = np.linspace(0,Lx,nx/2)
+    zv = np.linspace(0,Lz,nz/2)-Lz/2
+    matdir = basedir+'/Slices/'
+    bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
+    by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
+    bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
+    splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
+    splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    domainnums = finddomainnums(basedir,x0,z0,delx,delz,topx,topz)
+    px = []
+    py = []
+    pz = []
+    pux = []
+    puy = []
+    puz = []
+    pq = []
+    for dom in domainnums:
+        for partname in partlist:
+            filename = partdir+'/T.'+str(twrite)+'/e'+partname+'Particle.'+str(twrite)+'.'+str(dom)
+            gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
+            cond = np.nonzero(np.logical_and((np.abs(pxi-x0)<delx), (np.abs(pzi-z0)<delz)))
+            px = np.append(px, pxi[cond])
+            py = np.append(py, pyi[cond])
+            pz = np.append(pz, pzi[cond])
+            pux = np.append(pux, puxi[cond])
+            puy = np.append(puy, puyi[cond])
+            puz = np.append(puz, puzi[cond])
+            pq = np.append(pq, pqi[cond])
+    #particle data now assembled, ready to bin
+    mx=np.mean(px)
+    mz = np.mean(pz)
+    
+    #print(mx,mz)
+    
+    pbx = splinebx.ev(px,pz)
+    pby = splineby.ev(px,pz)
+    pbz = splinebz.ev(px,pz)
+    
+    Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
+    bxu=pbx/Bmod
+    byu=pby/Bmod
+    bzu=pbz/Bmod
+
+    bp1x=bzu
+    bp1z=-bxu 
+    Bmodp=np.sqrt(bp1x**2+bp1z**2)
+    bp1x=bp1x/Bmodp
+    bp1z=bp1z/Bmodp
+    bp1y=bp1z*0
+        
+    #make  unit vector perp to B and bp1 
+    bp2x=byu*bp1z-bzu*bp1y
+    bp2y=bzu*bp1x-bxu*bp1z
+    bp2z=bxu*bp1y-byu*bp1x
+    
+    Vpar = bxu*pux+byu*puy+bzu*puz
+    Vperp1 = bp1x*pux+bp1y*puy+bp1z*puz
+    Vperp2 = bp2x*pux+bp2y*puy+bp2z*puz
+    
+    Vperp=np.sqrt(Vperp1**2+Vperp2**2)
+    dv = 2*vmax/nv
+    dvperp = vmax/(nv+1)
+    delx = np.min((Lx,x0+delx))-np.max((0,x0-delx))
+    delz = np.min((Lz/2,z0+delz))-np.max((-Lz/2,z0-delz))
+    Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=np.abs(pq))
+    VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
+    Fxy = Fxy.T/VY/dv/delx/delz/dvperp
+    f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq)) #3D f(vpar,vperp1,vperp2)
+    f = f/dv**3/delx/delz
+    #fXYZ,(vX,vY,vZ) = np.histogramdd((pux,puy,puz),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq))/dv**3/delx/delz #3D f(vx,vy,vz)
+    #fXYZ = fXYZ/dv**3/delx/delz
+    savedic = {'f':f,'fparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY,'mx':mx,'mz':mz}#,'fXYZ':fXYZ,'vx':vX,'vy':vY,'vz':vZ)
+    sio.savemat(partdir+'f_x'+str(x0)+'_z'+str(z0)+'_'+str(slicenum)+'.mat',savedic)
+
+    
+def makefgctb(basedir, partdir, twrite,x0,z0,delx,delz,vmax,nv,topx,topz,partlist): #basedir as above for field data (1 up from data directory), partdir is the particle directory asscociated with simulation
+    with open(basedir + '/info','r') as fp:
+        info = fp.read()
+        fp.close()
+    #nx = int(float(info.split('nx =')[1].split()[0]))
+    #nz = int(float(info.split('nz =')[1].split()[0]))
+    #dtwci = float(info.split('dt*wci =')[1].split()[0])
+    #Lx = float(info.split('Lx/de =')[1].split()[0])
+    #Lz = float(info.split('Lz/de =')[1].split()[0])
+    #slicenum = round(twrite*dtwci)
+    
+    nx = 2016
+    nz = 2016
+    dtwci = 1.1575e-4
+    Lx = 400
+    Lz = 400
+    slicenum = 0
+    
+    xv = np.linspace(0,Lx,nx/2)
+    zv = np.linspace(0,Lz,nz/2)-Lz/2
+    matdir = basedir+'/Slices/'
+    bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
+    by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
+    bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
+    splinebx = sp.interpolate.RectBivariateSpline(xv,zv,bx.T)
+    splineby = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    splinebz = sp.interpolate.RectBivariateSpline(xv,zv,bz.T)
+    domainnums = finddomainnums(basedir,x0,z0,delx,delz,topx,topz)
+    px = []
+    py = []
+    pz = []
+    #pux = []
+    #puy = []
+    #puz = []
+    pq = []
+    Vpar = []
+    Vperp = []
+    Vperp1 = []
+    Vperp2 = []
+    for dom in domainnums:
+        for partname in partlist:
+            filename = partdir+'/T.'+str(twrite)+'/e'+partname+'Particle.'+str(twrite)+'.'+str(dom)
+            gi, pxi, pyi, pzi, puxi, puyi, puzi, pqi = load_domain_particles(filename)
+            pbx = splinebx.ev(pxi,pzi)
+            pby = splineby.ev(pxi,pzi)
+            pbz = splinebz.ev(pxi,pzi)
+
+            Bmod=np.sqrt(pbx**2+pby**2+pbz**2)
+            bxu=pbx/Bmod
+            byu=pby/Bmod
+            bzu=pbz/Bmod
+
+            bp1x=bzu
+            bp1z=-bxu 
+            Bmodp=np.sqrt(bp1x**2+bp1z**2)
+            bp1x=bp1x/Bmodp
+            bp1z=bp1z/Bmodp
+            bp1y=bp1z*0
+
+            #make  unit vector perp to B and bp1 
+            bp2x=byu*bp1z-bzu*bp1y
+            bp2y=bzu*bp1x-bxu*bp1z
+            bp2z=bxu*bp1y-byu*bp1x
+
+            Vpari = bxu*puxi+byu*puyi+bzu*puzi
+            Vperp1i = bp1x*puxi+bp1y*puyi+bp1z*puzi
+            Vperp2i = bp2x*puxi+bp2y*puyi+bp2z*puzi
+
+            Vperpi=np.sqrt(Vperp1i**2+Vperp2i**2)
+
+            #rho = m cross(v,B)/(q |B|^2)
+
+            rhox = -(puyi*pbz-puzi*pby)/Bmod**2 #- is electron charge, m = 1
+            rhoz = -(puxi*pby-puyi*pbx)/Bmod**2
+            rhoy = -(puzi*pbx-puxi*pbz)/Bmod**2
+
+            gx = pxi - rhox
+            gz = pzi - rhoz
+            gy = pyi - rhoy
+
+            cond = np.nonzero(np.logical_and((np.abs(gx-x0)<delx), (np.abs(gz-z0)<delz)))
+            px = np.append(px, gx[cond])
+            py = np.append(py, gy[cond])
+            pz = np.append(pz, gz[cond])
+            #pux = np.append(pux, puxi[cond])
+            #puy = np.append(puy, puyi[cond])
+            #puz = np.append(puz, puzi[cond])
+            pq = np.append(pq, pqi[cond])
+            Vpar = np.append(Vpar, Vpari[cond])
+            Vperp1 = np.append(Vperp1, Vperp1i[cond])
+            Vperp2 = np.append(Vperp2, Vperp2i[cond])
+            Vperp = np.append(Vperp, Vperpi[cond])
+    #particle data now assembled, ready to bin
+    mx=np.mean(px)
+    mz = np.mean(pz)
+
+    dv = 2*vmax/nv
+    dvperp = vmax/(nv+1)
+    delx = np.min((Lx,x0+delx))-np.max((0,x0-delx))
+    delz = np.min((Lz/2,z0+delz))-np.max((-Lz/2,z0-delz))
+    Fxy,vx,vy = np.histogram2d(Vpar,Vperp,(nv,nv+1),((-vmax,vmax),(0,vmax)),weights=np.abs(pq))
+    VX,VY = np.meshgrid((vx[0:nv]+vx[1:nv+1])/2,(vy[0:nv+1]+vy[1:nv+2])/2)
+    Fxy = Fxy.T/VY/dv/delx/delz/dvperp
+    f,(vpar,vperp1,vperp2) = np.histogramdd((Vpar,Vperp1,Vperp2),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq)) #3D f(vpar,vperp1,vperp2)
+    f = f/dv**3/delx/delz
+    #fXYZ,(vX,vY,vZ) = np.histogramdd((pux,puy,puz),(nv,nv,nv),((-vmax,vmax),(-vmax,vmax),(-vmax,vmax)),weights=np.abs(pq))/dv**3/delx/delz #3D f(vx,vy,vz)
+    #fXYZ = fXYZ/dv**3/delx/delz
+    savedic = {'fgc':f,'fgcparperp':Fxy,'vpar':vpar,'vperp1':vperp1,'vperp2':vperp2,'VZ':VX,'VP':VY,'mx':mx,'mz':mz}#,'fgcXYZ':fXYZ,'vx':vX,'vy':vY,'vz':vZ)
+    sio.savemat(partdir+'fgc_x'+str(x0)+'_z'+str(z0)+'_'+str(slicenum)+'.mat',savedic)
+    
+def makemats_manual(basedir,nx,nz,mime,dx_de,wpewce,dtwci):
+    savedir = basedir + '/Slices/'
+    gdadir = basedir + '/data/'
+
+    if not os.path.isdir(savedir):
+        mkdir(savedir)
+    
+    varlist = []
+    varz = [f for f in listdir(gdadir) if ((os.path.isfile(gdadir+f)) and (f!='info'))]
+    varz = np.sort(varz)
+    length = len(varz)
+    ts = []
+    i = 0
+    flag = True
+    while flag:
+        temp = varz[i].split('_')
+        i = i + 1
+        temp2 = temp[1].split('.')
+        tnew = int(temp2[0])
+        if np.sum(tnew==np.array(ts))==0:
+           ts.append(tnew)
+        else:
+            flag = False
+    ts = np.sort(ts).astype(int)
+    j = -1
+    for i in range(0,int(length/len(ts))):
+        temp = varz[i*len(ts)].split('_')
+        varlist.append(temp[0])
+    with open(basedir + '/info','r') as fp:
+        info = fp.read()
+    fp.close()
+    populateslices(varlist,ts,nx,nz,gdadir,savedir)
+    #bundleslices(basedir,range(0,len(ts)))
+    processSliceSerial_manual(savedir,range(0,len(ts)),mime,dx_de,wpewce,dtwci)
+    
+def processSliceSerial_manual(matdir, Slicenums,mime,dx_de,wpewce,dtwci):
+    dt0 = wpewce*mime
+    dt = int(1/dtwci)
+    Edrive = 0
+    taudrive = 1
+
+    #taudrive = dt0*tauwci
+    #Edrive = v_A/wpewce*edrivefactor
+    #dt = mime*wpewce
+
+    for slicenum in Slicenums:
+        process1slice(matdir,slicenum,dt,dx_de)
+    fixPsi(matdir,Slicenums,dt0, Edrive, taudrive)
+    return 0
