@@ -234,7 +234,7 @@ def process1sliceH(matdir,slicenum,dx_de):
                 + Pixz*(ehat1x*ehat2z+ehat2x*ehat1z)+ Piyz*(ehat1z*ehat2y+ehat2z*ehat1y)
             Piperp1 = (a+d)/2+np.sqrt(((a-d)/2)**2+b**2) 
             Piperp2 = (a+d)/2-np.sqrt(((a-d)/2)**2+b**2) 
-            Pip1p2 = 0*Ppar
+            Pip1p2 = 0*Pipar
             p1 = Pixx*ehat1x*bhatx+Piyy*ehat1y*bhaty+Pizz*ehat1z*bhatz + Pixy*(ehat1x*bhaty+bhatx*ehat1y) \
                  + Pixz*(ehat1x*bhatz+bhatx*ehat1z)+ Piyz*(ehat1z*bhaty+bhatz*ehat1y);
             p2 = Pixx*ehat2x*bhatx+Piyy*ehat2y*bhaty+Pizz*ehat2z*bhatz + Pixy*(ehat2x*bhaty+bhatx*ehat2y) \
@@ -364,7 +364,6 @@ def processSliceH(matdir, Slicenums, dx_di):
     #taudrive = dt0*tauwci
     #Edrive = v_A/wpewce*edrivefactor
     #dt = mime*wpewce
-
     #for slicenum in Slicenums:
      #   process1slice(matdir,slicenum,dt,dx_de)
     pool = multiprocessing.Pool()
@@ -638,7 +637,7 @@ def makematsH(basedir):
     nx = 1800
     nz = 1800
     dx_di = Lx/nx
-    fp.close()
+    #fp.close()
     populateslices(varlist,ts,nx,nz,gdadir,savedir)
     #bundleslices(basedir,range(0,len(ts)))
     processSliceH(savedir,range(0,len(ts)),dx_di)
