@@ -20,6 +20,18 @@ from PIL import Image
 #import moviepy.editor as mpy
 def saveslice(var,slicenumP,slicenumM,nx,nz,gdadir,savedir):
     casedict = {
+        'pi2-xx':'Pi2xx',
+        'pi2-xy':'Pi2xy',
+        'pi2-xz':'Pi2xz',
+        'pi2-yy':'Pi2yy',
+        'pi2-yz':'Pi2yz',
+        'pi2-zz':'Pi2zz',
+        'pi3-xx':'Pi3xx',
+        'pi3-xy':'Pi3xy',
+        'pi3-xz':'Pi3xz',
+        'pi3-yy':'Pi3yy',
+        'pi3-yz':'Pi3yz',
+        'pi3-zz':'Pi3zz',
         'pe-xx':'Pexx',
         'pe-xy':'Pexy',
         'pe-xz':'Pexz',
@@ -64,7 +76,19 @@ def loadslice(q,slicenum,nx,nz,datadir):
         'neUUexz':'neuue-xz',
         'neUUeyy':'neuue-yy',
         'neUUeyz':'neuue-yz',
-        'neUUezz':'neuue-zz'
+        'neUUezz':'neuue-zz',
+        'Pi2xx':'pi2-xx',
+        'Pi2xy':'pi2-xy',
+        'Pi2xz':'pi2-xz',
+        'Pi2yy':'pi2-yy',
+        'Pi2yz':'pi2-yz',
+        'Pi2zz':'pi2-zz',
+        'Pi3xx':'pi3-xx',
+        'Pi3xy':'pi3-xy',
+        'Pi3xz':'pi3-xz',
+        'Pi3yy':'pi3-yy',
+        'Pi3yz':'pi3-yz',
+        'Pi3zz':'pi3-zz'
     }
     q = casedict.get(q,q)
     
@@ -166,6 +190,138 @@ def process1slice(matdir,slicenum,dt,dx_de):
     else:
         print('Slice ' + str(slicenum) + ' is missing non-averaged field quantities!')
 
+
+def process1sliceH(matdir,slicenum,dx_de):
+    Fflag = os.path.isfile(matdir+'bx_' + str(slicenum) + '.mat')
+    Iflag = os.path.isfile(matdir+'ni_' + str(slicenum) + '.mat')
+    I2flag = os.path.isfile(matdir+'ni2_' + str(slicenum) + '.mat')
+    I3flag = os.path.isfile(matdir+'ni3_' + str(slicenum) + '.mat')
+    if  Fflag:
+        bx = sio.loadmat(matdir+'/bx_'+str(slicenum)+'.mat')['bx']
+        by = sio.loadmat(matdir+'/by_'+str(slicenum)+'.mat')['by']
+        bz = sio.loadmat(matdir+'/bz_'+str(slicenum)+'.mat')['bz']
+        ey = sio.loadmat(matdir+'/ey_'+str(slicenum)+'.mat')['ey']
+        absB = np.sqrt(bx**2+by**2+bz**2)
+        bhatx = np.divide(bx,absB)
+        bhaty = np.divide(by,absB)
+        bhatz = np.divide(bz,absB)
+        sz = np.shape(bx)
+        Ibx = np.cumsum(bz[0,:])-(bz[0,:]+bz[0,0])/2
+        Ibz = np.cumsum(bx, axis=0) - (np.matmul(np.ones((sz[0],1)),np.reshape(bx[0,:],(1,-1))) + bx)/2
+        Psi = 2*(np.matmul(np.ones((sz[0],1)), np.reshape(Ibx,(1,-1))) - Ibz)*dx_de
+        #Psi = solvePoisson(4*np.pi*sio.loadmat(matdir+'/jy_' + str(slicenum) + '.mat')['jy'],dx_de,0)
+        newfilesF = {'Psi':Psi}
+        for key,value in newfilesF.items():
+            sio.savemat(matdir+key+'_' + str(slicenum) + '.mat', {key:value})
+        if Iflag:
+            ni = sio.loadmat(matdir+'/ni_'+str(slicenum)+'.mat')['ni']
+            Pixx = sio.loadmat(matdir+'/Pixx_'+str(slicenum)+'.mat')['Pixx']
+            Pixy = sio.loadmat(matdir+'/Pixy_'+str(slicenum)+'.mat')['Pixy']
+            Pixz = sio.loadmat(matdir+'/Pixz_'+str(slicenum)+'.mat')['Pixz']
+            Piyy = sio.loadmat(matdir+'/Piyy_'+str(slicenum)+'.mat')['Piyy']
+            Piyz = sio.loadmat(matdir+'/Piyz_'+str(slicenum)+'.mat')['Piyz']
+            Pizz = sio.loadmat(matdir+'/Pizz_'+str(slicenum)+'.mat')['Pizz']
+            Pipar = Pixx*bhatx**2+Piyy*bhaty**2+Pizz*bhatz**2 + 2*(bhatx*(Pixy*bhaty+Pixz*bhatz)+bhatz*bhaty*Piyz)        
+            ehat1x = -bhaty/np.sqrt(1-bhatz**2)
+            ehat1y = bhatx/np.sqrt(1-bhatz**2)
+            ehat1z = 0*bhaty
+            ehat2x = -bhatz*ehat1y 
+            ehat2y = bhatz*ehat1x 
+            ehat2z = bhatx*ehat1y-bhaty*ehat1x
+            a = Pixx*ehat1x**2+Piyy*ehat1y**2+Pizz*ehat1z**2 + 2*(ehat1x*(Pixy*ehat1y+Pixz*ehat1z)+ehat1z*ehat1y*Piyz);
+            d = Pixx*ehat2x**2+Piyy*ehat2y**2+Pizz*ehat2z**2 + 2*(ehat2x*(Pixy*ehat2y+Pixz*ehat2z)+ehat2z*ehat2y*Piyz);
+            b = Pixx*ehat1x*ehat2x+Piyy*ehat1y*ehat2y+Pizz*ehat1z*ehat2z + Pixy*(ehat1x*ehat2y+ehat2x*ehat1y) \
+                + Pixz*(ehat1x*ehat2z+ehat2x*ehat1z)+ Piyz*(ehat1z*ehat2y+ehat2z*ehat1y)
+            Piperp1 = (a+d)/2+np.sqrt(((a-d)/2)**2+b**2) 
+            Piperp2 = (a+d)/2-np.sqrt(((a-d)/2)**2+b**2) 
+            Pip1p2 = 0*Ppar
+            p1 = Pixx*ehat1x*bhatx+Piyy*ehat1y*bhaty+Pizz*ehat1z*bhatz + Pixy*(ehat1x*bhaty+bhatx*ehat1y) \
+                 + Pixz*(ehat1x*bhatz+bhatx*ehat1z)+ Piyz*(ehat1z*bhaty+bhatz*ehat1y);
+            p2 = Pixx*ehat2x*bhatx+Piyy*ehat2y*bhaty+Pizz*ehat2z*bhatz + Pixy*(ehat2x*bhaty+bhatx*ehat2y) \
+                 + Pixz*(ehat2x*bhatz+bhatx*ehat2z)+ Piyz*(ehat2z*bhaty+bhatz*ehat2y);
+            theta = .5*np.arcsin(2*b/(a+d))
+            Piparp1 = p1*np.cos(theta)-p2*np.sin(theta)
+            Piparp2 = p2*np.cos(theta)+p1*np.sin(theta)
+            Tipar = Pipar/ni
+            Tiperp = (Piperp1+Piperp2)/2/ni
+            newfilesI = {'Pipar':Pipar,'Piperp1':Piperp1,'Piperp2':Piperp2,'Piparp1':Piparp1,
+                         'Piparp2':Piparp2,'Pip1p2':Pip1p2,'Tipar':Tipar,'Tiperp':Tiperp}
+            for key,value in newfilesI.items():
+                sio.savemat(matdir+key+'_' + str(slicenum) + '.mat', {key:value})
+        else:
+            print('Slice ' + str(slicenum) + ' is missing non-averaged ion quantities!')
+        if I2flag:
+            ni2 = sio.loadmat(matdir+'/ni2_'+str(slicenum)+'.mat')['ni2']
+            Pixx = sio.loadmat(matdir+'/Pi2xx_'+str(slicenum)+'.mat')['Pi2xx']
+            Pixy = sio.loadmat(matdir+'/Pi2xy_'+str(slicenum)+'.mat')['Pi2xy']
+            Pixz = sio.loadmat(matdir+'/Pi2xz_'+str(slicenum)+'.mat')['Pi2xz']
+            Piyy = sio.loadmat(matdir+'/Pi2yy_'+str(slicenum)+'.mat')['Pi2yy']
+            Piyz = sio.loadmat(matdir+'/Pi2yz_'+str(slicenum)+'.mat')['Pi2yz']
+            Pizz = sio.loadmat(matdir+'/Pi2zz_'+str(slicenum)+'.mat')['Pi2zz']
+            Pi2par = Pixx*bhatx**2+Piyy*bhaty**2+Pizz*bhatz**2 + 2*(bhatx*(Pixy*bhaty+Pixz*bhatz)+bhatz*bhaty*Piyz)
+        
+            a = Pixx*ehat1x**2+Piyy*ehat1y**2+Pizz*ehat1z**2 + 2*(ehat1x*(Pixy*ehat1y+Pixz*ehat1z)+ehat1z*ehat1y*Piyz)
+            d = Pixx*ehat2x**2+Piyy*ehat2y**2+Pizz*ehat2z**2 + 2*(ehat2x*(Pixy*ehat2y+Pixz*ehat2z)+ehat2z*ehat2y*Piyz)
+            b = Pixx*ehat1x*ehat2x+Piyy*ehat1y*ehat2y+Pizz*ehat1z*ehat2z + Pixy*(ehat1x*ehat2y+ehat2x*ehat1y) \
+                + Pixz*(ehat1x*ehat2z+ehat2x*ehat1z)+ Piyz*(ehat1z*ehat2y+ehat2z*ehat1y)
+            Pi2perp1 = (a+d)/2+np.sqrt(((a-d)/2)**2+b**2) 
+            Pi2perp2 = (a+d)/2-np.sqrt(((a-d)/2)**2+b**2) 
+            Pi2p1p2 = 0*Pi2par
+            p1 = Pixx*ehat1x*bhatx+Piyy*ehat1y*bhaty+Pizz*ehat1z*bhatz + Pixy*(ehat1x*bhaty+bhatx*ehat1y) \
+                 + Pixz*(ehat1x*bhatz+bhatx*ehat1z)+ Piyz*(ehat1z*bhaty+bhatz*ehat1y)
+            p2 = Pixx*ehat2x*bhatx+Piyy*ehat2y*bhaty+Pizz*ehat2z*bhatz + Pixy*(ehat2x*bhaty+bhatx*ehat2y) \
+                 + Pixz*(ehat2x*bhatz+bhatx*ehat2z)+ Piyz*(ehat2z*bhaty+bhatz*ehat2y)
+            theta = .5*np.arcsin(2*b/(a+d))
+            Pi2parp1 = p1*np.cos(theta)-p2*np.sin(theta)
+            Pi2parp2 = p2*np.cos(theta)+p1*np.sin(theta)
+        
+            Ti2par = Pi2par/ni2 
+            Ti2perp = (Pi2perp1+Pi2perp2)/2/ni2
+            newfilesI2 = {'Pi2par':Pi2par,'Pi2perp1':Pi2perp1,'Pi2perp2':Pi2perp2,
+                     'Pi2parp1':Pi2parp1,'Pi2parp2':Pi2parp2,'Pi2p1p2':Pi2p1p2,
+                     'Ti2par':Ti2par,'Ti2perp':Ti2perp}
+            for key,value in newfilesI2.items():
+                sio.savemat(matdir+key+'_' + str(slicenum) + '.mat', {key:value})
+
+            if I3flag:
+                ni3 = sio.loadmat(matdir+'/ni3_'+str(slicenum)+'.mat')['ni3']
+                Pixx = sio.loadmat(matdir+'/Pi3xx_'+str(slicenum)+'.mat')['Pi3xx']
+                Pixy = sio.loadmat(matdir+'/Pi3xy_'+str(slicenum)+'.mat')['Pi3xy']
+                Pixz = sio.loadmat(matdir+'/Pi3xz_'+str(slicenum)+'.mat')['Pi3xz']
+                Piyy = sio.loadmat(matdir+'/Pi3yy_'+str(slicenum)+'.mat')['Pi3yy']
+                Piyz = sio.loadmat(matdir+'/Pi3yz_'+str(slicenum)+'.mat')['Pi3yz']
+                Pizz = sio.loadmat(matdir+'/Pi3zz_'+str(slicenum)+'.mat')['Pi3zz']
+                Pi3par = Pixx*bhatx**2+Piyy*bhaty**2+Pizz*bhatz**2 + 2*(bhatx*(Pixy*bhaty+Pixz*bhatz)+bhatz*bhaty*Piyz)
+        
+                a = Pixx*ehat1x**2+Piyy*ehat1y**2+Pizz*ehat1z**2 + 2*(ehat1x*(Pixy*ehat1y+Pixz*ehat1z)+ehat1z*ehat1y*Piyz)
+                d = Pixx*ehat2x**2+Piyy*ehat2y**2+Pizz*ehat2z**2 + 2*(ehat2x*(Pixy*ehat2y+Pixz*ehat2z)+ehat2z*ehat2y*Piyz)
+                b = Pixx*ehat1x*ehat2x+Piyy*ehat1y*ehat2y+Pizz*ehat1z*ehat2z + Pixy*(ehat1x*ehat2y+ehat2x*ehat1y) \
+                    + Pixz*(ehat1x*ehat2z+ehat2x*ehat1z)+ Piyz*(ehat1z*ehat2y+ehat2z*ehat1y)
+                Pi3perp1 = (a+d)/2+np.sqrt(((a-d)/2)**2+b**2) 
+                Pi3perp2 = (a+d)/2-np.sqrt(((a-d)/2)**2+b**2) 
+                Pi3p1p2 = 0*Pi3par
+                p1 = Pixx*ehat1x*bhatx+Piyy*ehat1y*bhaty+Pizz*ehat1z*bhatz + Pixy*(ehat1x*bhaty+bhatx*ehat1y) \
+                    + Pixz*(ehat1x*bhatz+bhatx*ehat1z)+ Piyz*(ehat1z*bhaty+bhatz*ehat1y)
+                p2 = Pixx*ehat2x*bhatx+Piyy*ehat2y*bhaty+Pizz*ehat2z*bhatz + Pixy*(ehat2x*bhaty+bhatx*ehat2y) \
+                    + Pixz*(ehat2x*bhatz+bhatx*ehat2z)+ Piyz*(ehat2z*bhaty+bhatz*ehat2y)
+                theta = .5*np.arcsin(2*b/(a+d))
+                Pi3parp1 = p1*np.cos(theta)-p2*np.sin(theta)
+                Pi3parp2 = p2*np.cos(theta)+p1*np.sin(theta)
+                
+                Ti3par = Pi3par/ni3 
+                Ti3perp = (Pi3perp1+Pi3perp2)/2/ni3
+                newfilesI3 = {'Pi3par':Pi3par,'Pi3perp1':Pi3perp1,'Pi3perp2':Pi3perp2,
+                              'Pi3parp1':Pi3parp1,'Pi3parp2':Pi3parp2,'Pi3p1p2':Pi3p1p2,
+                              'Ti3par':Ti3par,'Ti3perp':Ti3perp}
+                for key,value in newfilesI3.items():
+                    sio.savemat(matdir+key+'_' + str(slicenum) + '.mat', {key:value})
+                else:
+                    print('Slice ' + str(slicenum) + ' is missing non-averaged ion species 3 quantities!')
+        else:
+            print('Slice ' + str(slicenum) + ' is missing non-averaged ion species 2 quantities!')
+    else:
+        print('Slice ' + str(slicenum) + ' is missing non-averaged field quantities!')
+        
 def processSlice(matdir, Slicenums):
     with open(matdir + '/../info','r') as fp:
         info = fp.read()
@@ -189,6 +345,30 @@ def processSlice(matdir, Slicenums):
     pool = multiprocessing.Pool()
     pool.starmap(process1slice,zip(repeat(matdir),Slicenums,repeat(dt),repeat(dx_de)))
     fixPsi(matdir,Slicenums,dt0, Edrive, taudrive)
+    return 0
+
+def processSliceH(matdir, Slicenums, dx_di):
+    #with open(matdir + '/../info','r') as fp:
+    #    info = fp.read()
+
+    #mime = int(float(info.split('mi/me =')[1].split()[0]))
+    #dx_de = float(info.split('dx/de =')[1].split()[0])
+    #wpewce = float(info.split('wpe/wce =')[1].split()[0])
+    #dtwci = float(info.split('dt*wci =')[1].split()[0])
+    #v_A = float(info.split('v_A')[1].split('=')[1].split()[0])
+    #dt0 = wpewce*mime
+    #dt = int(1/dtwci)
+    #Edrive = float(info.split('edrive =')[1].split()[0])
+    #taudrive = float(info.split('tdrive =')[1].split()[0])
+
+    #taudrive = dt0*tauwci
+    #Edrive = v_A/wpewce*edrivefactor
+    #dt = mime*wpewce
+
+    #for slicenum in Slicenums:
+     #   process1slice(matdir,slicenum,dt,dx_de)
+    pool = multiprocessing.Pool()
+    pool.starmap(process1sliceH,zip(repeat(matdir),Slicenums,repeat(dx_di)))
     return 0
 
 def fixPsi(matdir, Slicenums, dt, Edrive, taudrive):
@@ -263,6 +443,7 @@ def populateslices(varlist,ts,nx,nz,gdadir,savedir):
          #   saveslice(var,ts[slicenumM],slicenumM,nx,nz,gdadir,savedir)
         #Parallel(n_jobs=-1)(delayed(saveslice)(var,ts[slicenumM],slicenumM,nx,nz,gdadir,savedir) for slicenumM in range(0,len(ts)-1)) #now parallelized over time slice
     return 0
+
 
 #def populateslicesvarpar(varlist,ts,nx,nz,gdadir,savedir):
  #   for slicenumM in range(0,len(ts)-1):
@@ -415,6 +596,53 @@ def makemats(basedir):
     #bundleslices(basedir,range(0,len(ts)))
     processSlice(savedir,range(0,len(ts)))
 
+def makematsH(basedir):
+    savedir = basedir + '/Slices/'
+    gdadir = basedir + '/data/'
+
+    if not os.path.isdir(savedir):
+        mkdir(savedir)
+    
+    varlist = []
+    varz = [f for f in listdir(gdadir) if ((os.path.isfile(gdadir+f)) and (f!='info'))]
+    varz = np.sort(varz)
+    length = len(varz)
+    ts = []
+    i = 0
+    flag = True
+    while flag:
+        temp = varz[i].split('_')
+        i = i + 1
+        temp2 = temp[1].split('.')
+        tnew = int(temp2[0])
+        if np.sum(tnew==np.array(ts))==0:
+           ts.append(tnew)
+        else:
+            flag = False
+    ts = np.sort(ts).astype(int)
+    j = -1
+    for i in range(0,int(length/len(ts))):
+        temp = varz[i*len(ts)].split('_')
+        varlist.append(temp[0])
+
+    
+    #with open(basedir + '/info','r') as fp:
+    #    info = fp.read()
+
+   # nsteps = int(info.split('num_step =')[1].split()[0])
+   # nx = int(float(info.split('nx =')[1].split()[0]))
+   # nz = int(float(info.split('nz =')[1].split()[0]))
+   # dtwci = float(info.split('dt*wci =')[1].split()[0])
+   # nslices = int(nsteps*dtwci);
+    Lx = 1800
+    nx = 1800
+    nz = 1800
+    dx_di = Lx/nx
+    fp.close()
+    populateslices(varlist,ts,nx,nz,gdadir,savedir)
+    #bundleslices(basedir,range(0,len(ts)))
+    processSliceH(savedir,range(0,len(ts)),dx_di)
+    
 def contourvalues(indir, slicenums, xv, zv, Psivals, mime):
     ns = 10
     for slicenum in slicenums:
